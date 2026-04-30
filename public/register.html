@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register — AI Career Navigator</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="toast"></div>
+
+<div class="auth-page">
+  <div class="auth-left">
+    <div class="brand">
+      <div class="brand-logo">🧭</div>
+      <h1>AI Career Navigator</h1>
+      <p>Join thousands of students who found their ideal career with AI-powered guidance.</p>
+    </div>
+    <div class="brand-features">
+      <div class="brand-feature"><div class="bf-dot"></div>Free to register — no credit card</div>
+      <div class="brand-feature"><div class="bf-dot"></div>Instant AI career analysis</div>
+      <div class="brand-feature"><div class="bf-dot"></div>Detailed learning roadmaps</div>
+      <div class="brand-feature"><div class="bf-dot"></div>Perfect for students & freshers</div>
+    </div>
+  </div>
+
+  <div class="auth-right">
+    <div class="auth-box fade">
+      <h2>Create Account 🚀</h2>
+      <p class="sub">Start discovering your career path today.</p>
+
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="name" placeholder="Your full name" autocomplete="name">
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Minimum 6 characters" autocomplete="new-password">
+        <div class="form-hint">Use at least 6 characters with letters and numbers.</div>
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="confirm" placeholder="Repeat your password" autocomplete="new-password">
+      </div>
+
+      <button class="btn btn-primary" id="reg-btn">Create Account</button>
+
+      <div class="auth-switch">
+        Already have an account? <a href="login.html">Sign in</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/script.js"></script>
+<script>
+  document.getElementById('reg-btn').addEventListener('click', async () => {
+    const name     = document.getElementById('name').value.trim();
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const confirm  = document.getElementById('confirm').value;
+    const btn      = document.getElementById('reg-btn');
+
+    if (!name || !email || !password || !confirm) return showToast('Please fill in all fields.', 'warning');
+    if (password !== confirm) return showToast('Passwords do not match.', 'error');
+    if (password.length < 6)  return showToast('Password must be at least 6 characters.', 'warning');
+
+    btn.innerHTML = '<div class="loader"><span></span><span></span><span></span></div>';
+    btn.disabled  = true;
+    try {
+      await api('POST', '/api/register', { name, email, password });
+      showToast('Account created! Redirecting…', 'success');
+      setTimeout(() => window.location.href = '/dashboard.html', 800);
+    } catch (err) {
+      showToast(err.message, 'error');
+      btn.innerHTML = 'Create Account';
+      btn.disabled  = false;
+    }
+  });
+</script>
+</body>
+</html>

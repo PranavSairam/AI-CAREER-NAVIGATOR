@@ -1,0 +1,373 @@
+================================================================================
+  AI CAREER NAVIGATOR — COMPLETE PROJECT DOCUMENTATION (SEPM / ACADEMIC PACKAGE)
+================================================================================
+
+Document version: 1.0
+Last updated: 2026-04-15
+Project name: ai-career-navigator
+Repository layout: See docs/FOLDER_STRUCTURE.txt for the directory tree.
+
+--------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY
+--------------------------------------------------------------------------------
+
+AI Career Navigator is a full-stack web application for students and early-career
+professionals. Users register, build a profile (skills, interests, education, age),
+and receive ranked career recommendations with learning roadmaps. The system
+uses a rule-based "matching engine" over a fixed catalog of ten careers (not an
+external LLM API). Progress, goals, bookmarks, feedback, and activity are stored
+in SQLite and exposed through a REST-style JSON API behind cookie sessions.
+
+Primary value: structured career discovery, actionable roadmaps, and personal
+tracking in one place.
+
+
+--------------------------------------------------------------------------------
+2. PROBLEM STATEMENT
+--------------------------------------------------------------------------------
+
+Choosing a career path is difficult without personalized guidance. Generic advice
+does not map well to an individual's skills and interests. This project provides
+a lightweight, self-contained tool that scores careers against user-provided text
+and stores results for repeat visits.
+
+
+--------------------------------------------------------------------------------
+3. PROJECT OBJECTIVES
+--------------------------------------------------------------------------------
+
+- Allow secure account creation and login (hashed passwords, server-side sessions).
+- Capture and update user profile data used for matching.
+- Generate top-five career recommendations with match scores and six-step roadmaps.
+- Persist recommendations, learning progress, saved careers, goals, and feedback.
+- Provide dashboard insights: stats, recent activity, smart notifications, and
+  recommendation run history.
+- Offer a browsable career catalog independent of recommendations.
+- Keep the stack simple for academic delivery: Node.js, Express, SQLite, static HTML/CSS/JS.
+
+
+--------------------------------------------------------------------------------
+4. SCOPE
+--------------------------------------------------------------------------------
+
+In scope:
+- User authentication and session management.
+- Profile management and data export (JSON).
+- Recommendation generation, storage, and history of generation runs.
+- Learning progress per career roadmap (server-side sync).
+- Saved careers (bookmarks) with optional notes.
+- Goals with optional due dates; reminder-style API for due/overdue goals.
+- Feedback on individual recommendation rows (rating and optional comment).
+- Activity logging for auditing user actions.
+- Public career catalog API for Explore page.
+- Security middleware (Helmet headers, rate limits on sensitive auth routes).
+
+Out of scope (current release):
+- Third-party OAuth (Google/GitHub login).
+- Email verification / password reset via SMTP.
+- Real job postings or salary APIs.
+- Machine learning model training or cloud GPU inference.
+- Mobile native apps (responsive web only).
+
+
+--------------------------------------------------------------------------------
+5. STAKEHOLDERS AND USERS
+--------------------------------------------------------------------------------
+
+- End users: students and early-career professionals exploring roles.
+- Course evaluators (SEPM): instructors reviewing architecture, process, and docs.
+- Developers: maintainers extending APIs or UI.
+
+
+--------------------------------------------------------------------------------
+6. SYSTEM ARCHITECTURE (HIGH LEVEL)
+--------------------------------------------------------------------------------
+
+Layers:
+1) Client: HTML pages under public/, CSS under public/css/, shared JS under public/js/.
+   The browser calls JSON APIs with credentials included (cookies).
+
+2) Server: Express application in src/app.js mounts route modules under /api.
+   express-session stores userId after login. Helmet sets security headers.
+   express-rate-limit throttles auth-related routes.
+
+3) Data: SQLite file at data/career_navigator.db (auto-created). Foreign keys ON.
+   On first run after an upgrade, if an old career_navigator.db exists at the
+   project root, it is copied into data/ once (migration helper).
+
+ASCII diagram:
+
+  [Browser] --HTTP JSON--> [Express + session] --SQL--> [SQLite career_navigator.db]
+
+
+--------------------------------------------------------------------------------
+7. TECHNOLOGY STACK
+--------------------------------------------------------------------------------
+
+Runtime:        Node.js
+Web framework:  Express.js
+Database:       SQLite via sqlite3 (better-sqlite3 not used)
+Auth:           express-session (cookie), bcryptjs password hashing
+Security:       helmet, express-rate-limit (auth routes)
+Config:         dotenv (.env at project root; optional)
+Frontend:       HTML5, CSS3, vanilla JavaScript (no React/Vue in this repo)
+Fonts:          Google Fonts (Inter, Poppins) referenced from CSS
+
+
+--------------------------------------------------------------------------------
+8. FUNCTIONAL MODULES (FEATURE MAP)
+--------------------------------------------------------------------------------
+
+Module A — Authentication
+- Register, login, logout, current user (/api/me)
+- Change password, delete account (password confirmation)
+
+Module B — Profile
+- Read/update/clear profile (name, age, education, skills, interests)
+- Export all user-related data as JSON (/api/export)
+
+Module C — Recommendation engine
+- Rule-based scoring from catalog in src/data/careers.js
+- Top five careers returned; scores are deterministic with a small stable per-user
+  tie-break (no random jitter on each request)
+- Stores rows in career_recommendations; logs a summary row in recommendation_runs
+
+Module D — Dashboard and analytics
+- /api/dashboard aggregates user, profile snippet, top recommendations
+- /api/stats returns counts, profile completion percent, recent activity_log rows
+
+Module E — Career catalog (public read)
+- /api/careers and /api/careers/:slug for browse/explore UI
+
+Module F — Saved careers
+- Bookmark careers; optional notes; unique per user and career title
+
+Module G — Learning progress
+- Per-step completion stored server-side; sync and clear endpoints
+
+Module H — Goals
+- CRUD for goals; reminders endpoint computes overdue / due soon
+
+Module I — Feedback
+- Per-recommendation rating (1–5) and optional short comment
+
+Module J — Notifications
+- Derived alerts: incomplete profile, stale recommendation run, goal due dates
+
+Module K — Activity log
+- Append-only style log for important actions (meta stored as JSON text)
+
+
+--------------------------------------------------------------------------------
+9. DATABASE SCHEMA (SQLite)
+--------------------------------------------------------------------------------
+
+users
+  id INTEGER PK AUTOINCREMENT
+  name TEXT NOT NULL
+  email TEXT UNIQUE NOT NULL
+  password TEXT NOT NULL (bcrypt hash)
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+
+user_profiles
+  id INTEGER PK
+  user_id INTEGER UNIQUE NOT NULL FK users(id) ON DELETE CASCADE
+  age INTEGER
+  education TEXT
+  skills TEXT
+  interests TEXT
+  updated_at DATETIME
+
+career_recommendations
+  id INTEGER PK
+  user_id INTEGER NOT NULL FK users(id) ON DELETE CASCADE
+  career_title TEXT NOT NULL
+  match_score INTEGER
+  description TEXT
+  learning_path TEXT (JSON array of strings)
+  generated_at DATETIME
+
+recommendation_runs
+  id INTEGER PK
+  user_id INTEGER NOT NULL FK users(id) ON DELETE CASCADE
+  top_career TEXT NOT NULL
+  average_score INTEGER NOT NULL
+  recommendation_count INTEGER NOT NULL
+  created_at DATETIME
+
+saved_careers
+  id INTEGER PK
+  user_id INTEGER NOT NULL FK users(id) ON DELETE CASCADE
+  career_title TEXT NOT NULL
+  notes TEXT
+  created_at DATETIME
+  UNIQUE(user_id, career_title)
+
+learning_progress
+  user_id INTEGER NOT NULL FK users(id) ON DELETE CASCADE
+  career_title TEXT NOT NULL
+  step_index INTEGER NOT NULL
+  done INTEGER NOT NULL DEFAULT 0
+  updated_at DATETIME
+  PRIMARY KEY (user_id, career_title, step_index)
+
+recommendation_feedback
+  id INTEGER PK
+  user_id INTEGER NOT NULL FK users(id) ON DELETE CASCADE
+  recommendation_id INTEGER NOT NULL FK career_recommendations(id) ON DELETE CASCADE
+  rating INTEGER
+  comment TEXT
+  created_at DATETIME
+  UNIQUE(user_id, recommendation_id)
+
+user_goals
+  id INTEGER PK
+  user_id INTEGER NOT NULL FK users(id) ON DELETE CASCADE
+  title TEXT NOT NULL
+  career_title TEXT NULL
+  due_date TEXT NULL
+  completed INTEGER NOT NULL DEFAULT 0
+  created_at DATETIME
+
+activity_log
+  id INTEGER PK
+  user_id INTEGER NOT NULL FK users(id) ON DELETE CASCADE
+  action TEXT NOT NULL
+  meta TEXT NULL (JSON string)
+  created_at DATETIME
+
+Indexes: see src/db.js (user_id columns on heavy tables).
+
+
+--------------------------------------------------------------------------------
+10. REST API REFERENCE (JSON)
+--------------------------------------------------------------------------------
+
+Public:
+  GET  /api/health
+  GET  /api/careers?q=optional
+  GET  /api/careers/:slug
+
+Auth (session cookie):
+  POST   /api/register
+  POST   /api/login
+  POST   /api/logout
+  GET    /api/me
+  POST   /api/change-password
+  DELETE /api/account            (JSON body: password)
+
+Profile:
+  GET    /api/profile
+  POST   /api/profile
+  DELETE /api/profile
+  GET    /api/export
+
+Recommendations:
+  POST   /api/recommendations/generate
+  GET    /api/recommendations
+  GET    /api/recommendations/history
+  POST   /api/recommendations/:id/feedback
+
+Dashboard / insights:
+  GET    /api/dashboard
+  GET    /api/stats
+  GET    /api/notifications
+
+Saved / progress:
+  GET    /api/saved-careers
+  POST   /api/saved-careers
+  DELETE /api/saved-careers/:id
+  GET    /api/progress
+  PUT    /api/progress
+  POST   /api/progress/sync
+  POST   /api/progress/clear
+
+Goals:
+  GET    /api/goals
+  POST   /api/goals
+  PATCH  /api/goals/:id
+  DELETE /api/goals/:id
+  GET    /api/goals/reminders
+
+Typical success envelope: { success: true, ... }
+Typical error envelope:   { success: false, error: "message" } with 4xx/5xx
+
+
+--------------------------------------------------------------------------------
+11. FRONTEND PAGES (public/)
+--------------------------------------------------------------------------------
+
+login.html          Sign in
+register.html       Create account
+dashboard.html      Overview, stats, activity, notifications, history cards
+profile.html        Edit profile, change password, export JSON, generate paths
+recommendations.html Ranked paths, roadmap checkboxes, save, feedback
+explore.html        Browse catalog and expand roadmaps
+goals.html          Personal goals list
+
+Shared assets:
+  public/css/style.css
+  public/js/script.js
+
+
+--------------------------------------------------------------------------------
+12. SECURITY AND PRIVACY NOTES
+--------------------------------------------------------------------------------
+
+- Passwords hashed with bcrypt before storage.
+- Sessions are HTTP-only cookies; set secure in production when HTTPS is enabled.
+- Helmet adds standard HTTP security headers (CSP disabled for inline scripts in HTML).
+- Rate limiting reduces brute-force on login/register/password routes.
+- SQLite file must be protected on disk in production deployments.
+- No payment or government ID data is collected.
+
+
+--------------------------------------------------------------------------------
+13. CONFIGURATION AND RUNNING LOCALLY
+--------------------------------------------------------------------------------
+
+1) Install dependencies: npm install
+2) Optional: copy config/env.example to .env at project root and set SESSION_SECRET
+3) Start: node server.js   (or npm start)
+4) Open: http://localhost:3000/login.html
+
+Port defaults to 3000 unless PORT is set in .env.
+
+
+--------------------------------------------------------------------------------
+14. TESTING AND QUALITY (SEPM SUGGESTION)
+--------------------------------------------------------------------------------
+
+The tests/ folder is reserved for automated tests (none shipped). Recommended next steps:
+- API integration tests with supertest (auth, profile, recommendations).
+- Schema migration tests if tables change.
+- Linting (eslint) and formatting (prettier) in CI.
+
+
+--------------------------------------------------------------------------------
+15. KNOWN LIMITATIONS / FUTURE WORK
+--------------------------------------------------------------------------------
+
+- Matching is keyword/rule-based; not a substitute for human career counseling.
+- npm audit may report vulnerabilities in transitive dependencies; review before production.
+- Account recovery via email not implemented.
+- Internationalization (i18n) not implemented.
+
+
+--------------------------------------------------------------------------------
+16. ACADEMIC / SEPM ARTIFACT MAPPING (SUGGESTED)
+--------------------------------------------------------------------------------
+
+This file can serve as a consolidated Software Requirements / Design appendix:
+- Sections 2–5: problem, objectives, scope, stakeholders
+- Section 6: architecture
+- Sections 8–11: functional spec + interface spec
+- Section 9: data model
+- Section 12: security considerations
+
+Pair with: docs/FOLDER_STRUCTURE.txt for repository organization evidence.
+
+
+--------------------------------------------------------------------------------
+END OF DOCUMENT
+--------------------------------------------------------------------------------
