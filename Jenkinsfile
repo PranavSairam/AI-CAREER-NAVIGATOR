@@ -10,6 +10,8 @@ pipeline {
     NODE_ENV = 'test'
     PORT = '3000'
     SESSION_SECRET = 'jenkins-ci-not-a-secret'
+    // Common macOS Node install locations for Jenkins service users.
+    PATH = "/opt/homebrew/bin:/usr/local/bin:${env.PATH}"
   }
 
   stages {
