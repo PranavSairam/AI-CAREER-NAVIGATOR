@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Explore Careers — AI Career Navigator</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .search-row { display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.25rem; }
+    .search-row input { flex:1; min-width:200px; padding:0.75rem 1rem; border-radius:var(--radius); border:1px solid rgba(255,255,255,0.12); background:var(--navy-hover); color:var(--white); }
+    .career-grid { display:grid; gap:1rem; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); }
+    .career-tile { padding:1.2rem 1.35rem; border-radius:var(--radius-lg); background:var(--navy-card); border:1px solid rgba(255,255,255,0.08); transition:var(--transition); }
+    .career-tile:hover { border-color:var(--blue); box-shadow:var(--shadow); }
+    .career-tile h3 { font-size:1rem; margin-bottom:0.45rem; display:flex; align-items:center; gap:0.5rem; }
+    .career-tile p { font-size:0.85rem; color:var(--gray-500); line-height:1.45; }
+    .detail-panel { margin-top:1rem; padding:1rem; border-radius:var(--radius); background:var(--navy-hover); border:1px solid rgba(255,255,255,0.07); display:none; }
+    .detail-panel.open { display:block; }
+    .path-mini { font-size:0.78rem; color:var(--gray-300); margin-top:0.65rem; }
+    .path-mini li { margin-left:1rem; list-style:decimal; margin-bottom:0.25rem; }
+  </style>
+</head>
+<body>
+<div id="toast"></div>
+<div class="app-wrapper">
+  <aside class="sidebar">
+    <a href="dashboard.html" class="sidebar-logo">
+      <div class="s-icon">🧭</div>
+      <span>Career Navigator<em>AI-Powered</em></span>
+    </a>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <a href="dashboard.html" class="nav-link"><div class="nav-icon">🏠</div>Dashboard</a>
+      <a href="profile.html" class="nav-link"><div class="nav-icon">👤</div>My Profile</a>
+      <a href="recommendations.html" class="nav-link"><div class="nav-icon">🎯</div>Career Paths</a>
+      <a href="explore.html" class="nav-link active"><div class="nav-icon">🔭</div>Explore Careers</a>
+      <a href="goals.html" class="nav-link"><div class="nav-icon">✅</div>Goals</a>
+    </div>
+    <div class="nav-section mt-2">
+      <div class="nav-label">Account</div>
+      <a href="#" class="nav-link" id="logout-btn"><div class="nav-icon">🚪</div>Logout</a>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="user-chip">
+        <div class="u-avatar" id="sb-avatar">U</div>
+        <div class="u-info">
+          <div class="u-name" id="sb-name">Loading…</div>
+          <div class="u-role">Career Explorer</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-header fade">
+      <div class="breadcrumb"><a href="dashboard.html">Dashboard</a> › <span class="cur">Explore Careers</span></div>
+      <h1>Explore career roles 🔭</h1>
+      <p>Browse all supported careers, sample roadmaps, and keyword hints used by the matcher.</p>
+    </div>
+
+    <div class="card fade mb-2" style="padding:1.2rem 1.5rem;">
+      <div class="search-row">
+        <input type="search" id="q" placeholder="Search by title or description…" autocomplete="off">
+        <button class="btn btn-primary btn-sm" id="search-btn">Search</button>
+      </div>
+      <div style="font-size:0.8rem;color:var(--gray-500);" id="count-lbl"></div>
+    </div>
+
+    <div id="grid" class="career-grid fade"></div>
+  </main>
+</div>
+<script src="js/script.js"></script>
+<script>
+(async () => {
+  await initSidebar();
+
+  const grid = document.getElementById('grid');
+  const q = document.getElementById('q');
+  const countLbl = document.getElementById('count-lbl');
+
+  async function load(query = '') {
+    grid.innerHTML = '<div class="card flex-center" style="padding:2rem;grid-column:1/-1;"><div class="loader"><span></span><span></span><span></span></div></div>';
+    try {
+      const url = query ? `/api/careers?q=${encodeURIComponent(query)}` : '/api/careers';
+      const r = await fetch(url);
+      const json = await r.json();
+      if (!r.ok) throw new Error(json.error || 'Failed to load');
+      const { careers, total } = json;
+      countLbl.textContent = total ? `${total} role(s)` : 'No matches';
+      if (!careers.length) {
+        grid.innerHTML = '<div class="card" style="grid-column:1/-1;"><div class="empty-state"><div class="empty-icon">🔎</div><h3>No results</h3><p>Try another search term.</p></div></div>';
+        return;
+      }
+      grid.innerHTML = careers.map((c, i) => `
+        <div class="career-tile fade" style="animation-delay:${i * 0.04}s">
+          <h3>${careerIcons[c.title] || '🎯'} ${c.title}</h3>
+          <p>${c.description}</p>
+          <button class="btn btn-secondary btn-sm mt-2" type="button" data-slug="${c.slug}">View roadmap</button>
+          <div class="detail-panel" id="dp-${c.slug}"></div>
+        </div>`).join('');
+
+      grid.querySelectorAll('button[data-slug]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const slug = btn.getAttribute('data-slug');
+          const panel = document.getElementById('dp-' + slug);
+          const isOpen = panel.classList.contains('open');
+          grid.querySelectorAll('.detail-panel.open').forEach(p => { p.classList.remove('open'); p.innerHTML=''; });
+          if (isOpen) return;
+          panel.innerHTML = '<div class="loader" style="padding:0.5rem;"><span></span><span></span><span></span></div>';
+          panel.classList.add('open');
+          try {
+            const rr = await fetch('/api/careers/' + encodeURIComponent(slug));
+            const detail = await rr.json();
+            if (!rr.ok) throw new Error(detail.error);
+            const steps = detail.career.learning_path || [];
+            panel.innerHTML = `
+              <div class="path-mini"><strong>Sample roadmap</strong><ol>${steps.map(s => `<li>${s}</li>`).join('')}</ol></div>
+              <div style="font-size:0.72rem;color:var(--gray-500);margin-top:0.5rem;">Keywords used in matching: ${detail.career.keywords.slice(0, 12).join(', ')}${detail.career.keywords.length > 12 ? '…' : ''}</div>`;
+          } catch (e) {
+            panel.innerHTML = '<p style="color:var(--danger);font-size:0.85rem;">Could not load details.</p>';
+          }
+        });
+      });
+    } catch (e) {
+      grid.innerHTML = `<div class="card" style="grid-column:1/-1;"><div class="empty-state"><div class="empty-icon">❌</div><h3>Error</h3><p>${e.message}</p></div></div>`;
+    }
+  }
+
+  document.getElementById('search-btn').addEventListener('click', () => load(q.value.trim()));
+  q.addEventListener('keydown', e => { if (e.key === 'Enter') load(q.value.trim()); });
+  await load('');
+})();
+</script>
+</body>
+</html>

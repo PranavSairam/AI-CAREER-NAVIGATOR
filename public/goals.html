@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Goals — AI Career Navigator</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .goal-row { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; padding:1rem 1.1rem; border-radius:var(--radius); background:var(--navy-hover); border:1px solid rgba(255,255,255,0.07); margin-bottom:0.65rem; }
+    .goal-row.done { opacity:0.62; }
+    .goal-row h4 { font-size:0.95rem; margin-bottom:0.25rem; }
+    .goal-meta { font-size:0.78rem; color:var(--gray-500); }
+  </style>
+</head>
+<body>
+<div id="toast"></div>
+<div class="app-wrapper">
+  <aside class="sidebar">
+    <a href="dashboard.html" class="sidebar-logo">
+      <div class="s-icon">🧭</div>
+      <span>Career Navigator<em>AI-Powered</em></span>
+    </a>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <a href="dashboard.html" class="nav-link"><div class="nav-icon">🏠</div>Dashboard</a>
+      <a href="profile.html" class="nav-link"><div class="nav-icon">👤</div>My Profile</a>
+      <a href="recommendations.html" class="nav-link"><div class="nav-icon">🎯</div>Career Paths</a>
+      <a href="explore.html" class="nav-link"><div class="nav-icon">🔭</div>Explore Careers</a>
+      <a href="goals.html" class="nav-link active"><div class="nav-icon">✅</div>Goals</a>
+    </div>
+    <div class="nav-section mt-2">
+      <div class="nav-label">Account</div>
+      <a href="#" class="nav-link" id="logout-btn"><div class="nav-icon">🚪</div>Logout</a>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="user-chip">
+        <div class="u-avatar" id="sb-avatar">U</div>
+        <div class="u-info">
+          <div class="u-name" id="sb-name">Loading…</div>
+          <div class="u-role">Career Explorer</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-header fade">
+      <div class="breadcrumb"><a href="dashboard.html">Dashboard</a> › <span class="cur">Goals</span></div>
+      <h1>Learning goals ✅</h1>
+      <p>Set milestones tied to careers or general habits. Mark them done as you progress.</p>
+    </div>
+
+    <div class="card fade mb-2" style="padding:1.25rem 1.5rem;">
+      <div class="card-title mb-2">Add a goal</div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Title</label>
+        <input type="text" id="g-title" placeholder="e.g. Finish AWS Practitioner course">
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Related career (optional)</label>
+        <input type="text" id="g-career" placeholder="e.g. Cloud Engineer">
+      </div>
+      <div class="form-group" style="margin-bottom:0.85rem;">
+        <label>Due date (optional)</label>
+        <input type="date" id="g-due">
+      </div>
+      <button type="button" class="btn btn-primary btn-sm" id="g-add">Add goal</button>
+    </div>
+
+    <div class="card fade" style="padding:1.25rem 1.5rem;">
+      <div class="card-title mb-2">Your goals</div>
+      <div id="g-list"><div style="color:var(--gray-500);font-size:0.9rem;">Loading…</div></div>
+    </div>
+  </main>
+</div>
+<script src="js/script.js"></script>
+<script>
+(async () => {
+  await initSidebar();
+
+  async function load() {
+    const list = document.getElementById('g-list');
+    try {
+      const { goals } = await api('GET', '/api/goals');
+      if (!goals.length) {
+        list.innerHTML = '<div class="empty-state" style="padding:1.5rem 0;"><div class="empty-icon">📝</div><p style="color:var(--gray-500);">No goals yet. Add one above.</p></div>';
+        return;
+      }
+      list.innerHTML = goals.map(g => `
+        <div class="goal-row ${g.completed ? 'done' : ''}" data-id="${g.id}">
+          <div>
+            <h4>${g.completed ? '✓ ' : ''}${escapeHtml(g.title)}</h4>
+            <div class="goal-meta">${g.career_title ? escapeHtml(g.career_title) + ' · ' : ''}${g.due_date ? 'Due ' + escapeHtml(g.due_date) : 'No due date'}</div>
+          </div>
+          <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+            <button type="button" class="btn btn-outline btn-sm" data-toggle="${g.id}">${g.completed ? 'Undo' : 'Done'}</button>
+            <button type="button" class="btn btn-danger btn-sm" data-del="${g.id}">Delete</button>
+          </div>
+        </div>`).join('');
+
+      list.querySelectorAll('[data-toggle]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = +btn.getAttribute('data-toggle');
+          const row = goals.find(x => x.id === id);
+          await api('PATCH', '/api/goals/' + id, { completed: !row.completed });
+          showToast('Updated.', 'success');
+          await load();
+        });
+      });
+      list.querySelectorAll('[data-del]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this goal?')) return;
+          const id = +btn.getAttribute('data-del');
+          await api('DELETE', '/api/goals/' + id);
+          showToast('Deleted.', 'info');
+          await load();
+        });
+      });
+    } catch (e) {
+      list.innerHTML = '<p style="color:var(--danger);">' + escapeHtml(e.message) + '</p>';
+    }
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  document.getElementById('g-add').addEventListener('click', async () => {
+    const title = document.getElementById('g-title').value.trim();
+    if (!title) {
+      showToast('Enter a title.', 'warning');
+      return;
+    }
+    const career_title = document.getElementById('g-career').value.trim() || null;
+    const due_date = document.getElementById('g-due').value || null;
+    try {
+      await api('POST', '/api/goals', { title, career_title, due_date });
+      document.getElementById('g-title').value = '';
+      document.getElementById('g-career').value = '';
+      document.getElementById('g-due').value = '';
+      showToast('Goal added.', 'success');
+      await load();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  });
+
+  await load();
+})();
+</script>
+</body>
+</html>

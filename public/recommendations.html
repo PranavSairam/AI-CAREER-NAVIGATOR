@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Career Paths — AI Career Navigator</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ── Career summary row (clickable) ── */
+    .career-summary {
+      background: var(--navy-hover);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      cursor: pointer;
+      transition: all var(--transition);
+      user-select: none;
+    }
+    .career-summary:hover { border-color: var(--blue); background: rgba(67,97,238,0.08); }
+    .career-summary.open  { border-color: var(--blue); border-bottom-left-radius: 0; border-bottom-right-radius: 0; background: rgba(67,97,238,0.1); }
+
+    .cs-row { display: flex; align-items: center; gap: 1rem; }
+    .cs-icon { width: 48px; height: 48px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; background: linear-gradient(135deg, var(--blue), var(--purple)); }
+    .cs-info { flex: 1; min-width: 0; }
+    .cs-info h3 { font-size: 1rem; font-weight: 700; color: var(--white); margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .cs-info p  { font-size: 0.8rem; color: var(--gray-500); line-height: 1.4; }
+    .cs-right { display: flex; align-items: center; gap: 1.1rem; flex-shrink: 0; }
+    .cs-score-wrap { text-align: center; }
+    .cs-score-num { font-size: 1.3rem; font-weight: 800; color: var(--blue-light); }
+    .cs-score-lbl { font-size: 0.65rem; color: var(--gray-500); }
+    .cs-progress-mini { text-align: center; }
+    .cs-prog-circle {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: conic-gradient(var(--teal) calc(var(--done,0) * 1%), rgba(255,255,255,0.07) 0);
+      display: flex; align-items: center; justify-content: center; position: relative;
+    }
+    .cs-prog-circle::after { content:''; position:absolute; inset:4px; border-radius:50%; background: var(--navy-hover); }
+    .cs-prog-num { position: relative; z-index:1; font-size:0.65rem; font-weight:800; color: var(--teal); }
+    .cs-prog-lbl { font-size: 0.62rem; color: var(--gray-500); margin-top: 0.15rem; }
+    .cs-arrow { font-size: 1.1rem; color: var(--gray-500); transition: transform 0.25s ease; }
+    .career-summary.open .cs-arrow { transform: rotate(90deg); color: var(--blue-light); }
+
+    /* ── Expandable detail panel ── */
+    .career-detail {
+      background: var(--navy-card);
+      border: 1px solid var(--blue);
+      border-top: none;
+      border-bottom-left-radius: var(--radius-lg);
+      border-bottom-right-radius: var(--radius-lg);
+      padding: 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1), padding 0.3s ease;
+    }
+    .career-detail.open { max-height: 1000px; padding: 1.5rem; }
+
+    /* Match score bar */
+    .detail-score-bar { margin-bottom: 1.25rem; }
+    .dsb-label { display:flex; justify-content:space-between; font-size:0.78rem; color:var(--gray-500); margin-bottom:0.3rem; }
+    .dsb-track { height: 8px; background: rgba(255,255,255,0.07); border-radius:99px; overflow:hidden; }
+    .dsb-fill  { height:100%; border-radius:99px; background: linear-gradient(90deg, var(--blue), var(--teal)); transition: width 1s ease; }
+
+    /* Steps checklist */
+    .steps-title { font-size:0.88rem; font-weight:700; color:var(--gray-300); margin-bottom:0.85rem; display:flex; align-items:center; gap:0.4rem; }
+    .steps-list  { display:flex; flex-direction:column; gap:0.55rem; }
+
+    .step-item {
+      display: flex; align-items: center; gap: 0.85rem;
+      padding: 0.75rem 1rem;
+      background: var(--navy-hover);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all var(--transition);
+      position: relative;
+    }
+    .step-item:hover { border-color: var(--blue); background: rgba(67,97,238,0.07); }
+    .step-item.done  { border-color: rgba(6,214,160,0.3); background: rgba(6,214,160,0.06); }
+
+    .step-checkbox {
+      width: 22px; height: 22px; border-radius: 6px;
+      border: 2px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 0.85rem;
+      transition: all var(--transition);
+      background: transparent;
+    }
+    .step-item.done .step-checkbox { background: var(--teal); border-color: var(--teal); }
+
+    .step-num-badge {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: rgba(67,97,238,0.18); color: var(--blue-light);
+      font-size: 0.65rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-item.done .step-num-badge { background: rgba(6,214,160,0.15); color: var(--teal); }
+
+    .step-text { flex: 1; font-size: 0.88rem; color: var(--gray-300); transition: color var(--transition); }
+    .step-item.done .step-text { color: var(--gray-500); text-decoration: line-through; }
+
+    /* Overall progress within detail */
+    .detail-prog-bar {
+      margin-top: 1.25rem; padding-top: 1.25rem;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+    .dpb-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; }
+    .dpb-label { font-size:0.82rem; font-weight:600; color:var(--white); }
+    .dpb-count  { font-size:0.82rem; color:var(--teal); font-weight:700; }
+    .dpb-track  { height:10px; background:rgba(255,255,255,0.07); border-radius:99px; overflow:hidden; }
+    .dpb-fill   { height:100%; border-radius:99px; background: linear-gradient(90deg, var(--blue), var(--teal)); transition: width 0.5s ease; }
+
+    .detail-actions { display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:1rem; }
+
+    /* Completion badge on summary */
+    .comp-pill {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      background: rgba(6,214,160,0.15); color: var(--teal);
+      border: 1px solid rgba(6,214,160,0.25);
+      padding: 0.2rem 0.55rem; border-radius: 99px;
+      font-size: 0.68rem; font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+<div id="toast"></div>
+
+<div class="app-wrapper">
+  <aside class="sidebar">
+    <a href="dashboard.html" class="sidebar-logo">
+      <div class="s-icon">🧭</div>
+      <span>Career Navigator<em>AI-Powered</em></span>
+    </a>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <a href="dashboard.html" class="nav-link"><div class="nav-icon">🏠</div>Dashboard</a>
+      <a href="profile.html"   class="nav-link"><div class="nav-icon">👤</div>My Profile</a>
+      <a href="recommendations.html" class="nav-link active"><div class="nav-icon">🎯</div>Career Paths</a>
+      <a href="explore.html" class="nav-link"><div class="nav-icon">🔭</div>Explore Careers</a>
+      <a href="goals.html" class="nav-link"><div class="nav-icon">✅</div>Goals</a>
+    </div>
+    <div class="nav-section mt-2">
+      <div class="nav-label">Account</div>
+      <a href="#" class="nav-link" id="logout-btn"><div class="nav-icon">🚪</div>Logout</a>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="user-chip">
+        <div class="u-avatar" id="sb-avatar">U</div>
+        <div class="u-info">
+          <div class="u-name" id="sb-name">Loading…</div>
+          <div class="u-role">Career Explorer</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-header fade">
+      <div class="breadcrumb"><a href="dashboard.html">Dashboard</a> › <span class="cur">Career Paths</span></div>
+      <h1>Your Career Paths 🎯</h1>
+      <p>Click any career card to expand it, then check off learning steps as you complete them.</p>
+    </div>
+
+    <!-- Action bar -->
+    <div class="card fade mb-2" style="padding:1.2rem 1.6rem;">
+      <div class="flex-between" style="flex-wrap:wrap;gap:1rem;">
+        <div>
+          <div style="font-weight:700;color:var(--white);margin-bottom:0.18rem;" id="recs-title">Loading…</div>
+          <div style="font-size:0.8rem;color:var(--gray-500);">Click a career card below to expand details and track progress</div>
+        </div>
+        <div style="display:flex;gap:0.7rem;flex-wrap:wrap;">
+          <a href="profile.html" class="btn btn-secondary btn-sm">✏️ Edit Profile</a>
+          <button class="btn btn-primary btn-sm" id="regen-btn">🤖 Regenerate</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Career list -->
+    <div id="recs-container" style="display:flex;flex-direction:column;gap:0.85rem;"></div>
+  </main>
+</div>
+
+<script src="js/script.js"></script>
+<script>
+let progressCache = {};
+let savedByTitle = {};
+
+function getMergedProgress(userId, careerTitle) {
+  const key = `progress_${userId}_${careerTitle}`;
+  let local = {};
+  try { local = JSON.parse(localStorage.getItem(key) || '{}'); } catch { local = {}; }
+  const srv = progressCache[careerTitle] || {};
+  const out = {};
+  const idxs = new Set([...Object.keys(local), ...Object.keys(srv)]);
+  for (const k of idxs) {
+    const n = parseInt(k, 10);
+    if (Number.isNaN(n)) continue;
+    out[n] = !!(local[k] || srv[k] || local[n] || srv[n]);
+  }
+  return out;
+}
+
+function saveProgress(userId, careerTitle, stepIdx, done) {
+  const key = `progress_${userId}_${careerTitle}`;
+  const data = getMergedProgress(userId, careerTitle);
+  data[stepIdx] = done;
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+function countDone(userId, careerTitle) {
+  const data = getMergedProgress(userId, careerTitle);
+  return Object.values(data).filter(Boolean).length;
+}
+
+let currentUser = null;
+let openCardIdx = null;
+
+async function loadProgressCache() {
+  try {
+    const { progress } = await api('GET', '/api/progress');
+    progressCache = progress || {};
+    await migrateLocalProgress();
+  } catch {
+    progressCache = {};
+  }
+}
+
+async function migrateLocalProgress() {
+  if (!currentUser) return;
+  const prefix = `progress_${currentUser.id}_`;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith(prefix)) continue;
+    const careerTitle = key.slice(prefix.length);
+    let local = {};
+    try { local = JSON.parse(localStorage.getItem(key) || '{}'); } catch { continue; }
+    const srv = progressCache[careerTitle] || {};
+    let need = false;
+    for (const [k, v] of Object.entries(local)) {
+      if (v && !srv[k] && !srv[String(k)]) need = true;
+    }
+    if (need) {
+      const merged = {};
+      const keys = new Set([...Object.keys(local), ...Object.keys(srv)]);
+      for (const k of keys) {
+        const n = parseInt(k, 10);
+        if (Number.isNaN(n)) continue;
+        merged[n] = !!(local[k] || srv[k] || local[n] || srv[n]);
+      }
+      try {
+        await api('POST', '/api/progress/sync', { career_title: careerTitle, steps: merged });
+        progressCache[careerTitle] = merged;
+      } catch {}
+    }
+  }
+}
+
+async function loadSaved() {
+  try {
+    const { saved } = await api('GET', '/api/saved-careers');
+    savedByTitle = {};
+    (saved || []).forEach(s => { savedByTitle[s.career_title] = s.id; });
+  } catch {
+    savedByTitle = {};
+  }
+}
+
+(async () => {
+  const user = await initSidebar();
+  if (!user) return;
+  currentUser = user;
+  await loadProgressCache();
+  await loadSaved();
+  await loadRecs();
+
+  document.getElementById('regen-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('regen-btn');
+    btn.innerHTML = '<div class="loader"><span></span><span></span><span></span></div>';
+    btn.disabled  = true;
+    try {
+      await api('POST', '/api/recommendations/generate');
+      showToast('New recommendations generated!', 'success');
+      openCardIdx = null;
+      await loadRecs();
+    } catch (err) { showToast(err.message, 'error'); }
+    btn.innerHTML = '🤖 Regenerate';
+    btn.disabled  = false;
+  });
+})();
+
+async function loadRecs() {
+  const container = document.getElementById('recs-container');
+  container.innerHTML = '<div class="card flex-center" style="padding:2rem;"><div class="loader"><span></span><span></span><span></span></div></div>';
+
+  try {
+    const { recommendations: recs } = await api('GET', '/api/recommendations');
+    window._recs = recs;
+    const title = document.getElementById('recs-title');
+
+    if (!recs || recs.length === 0) {
+      title.textContent = 'No recommendations yet';
+      container.innerHTML = `
+        <div class="card">
+          <div class="empty-state">
+            <div class="empty-icon">🤖</div>
+            <h3>No career recommendations yet</h3>
+            <p>Complete your profile with skills and interests, then generate your AI career paths.</p>
+            <a href="profile.html" class="btn btn-primary mt-2" style="width:auto;padding:0.8rem 2rem;">Complete Profile →</a>
+          </div>
+        </div>`;
+      return;
+    }
+
+    title.textContent = `${recs.length} career paths found for you`;
+    renderCards(recs);
+
+  } catch (err) {
+    container.innerHTML = `<div class="card"><div class="empty-state"><div class="empty-icon">❌</div><h3>Failed to load</h3><p>${err.message}</p></div></div>`;
+  }
+}
+
+function renderCards(recs) {
+  const container = document.getElementById('recs-container');
+  container.innerHTML = '';
+
+  recs.forEach((rec, i) => {
+    const icon  = careerIcons[rec.career_title] || '🎯';
+    const path  = Array.isArray(rec.learning_path) ? rec.learning_path : [];
+    const score = rec.match_score || 75;
+    const done  = countDone(currentUser.id, rec.career_title);
+    const pct   = path.length ? Math.round((done / path.length) * 100) : 0;
+    const badgeCls = score >= 80 ? 'badge-green' : score >= 65 ? 'badge-blue' : 'badge-purple';
+    const badgeTxt = score >= 80 ? '⭐ Excellent Match' : score >= 65 ? '✅ Good Match' : '🔵 Potential Match';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'career-block fade';
+    wrapper.style.animationDelay = `${i * 0.07}s`;
+
+    // ── Summary row (always visible, clickable) ──
+    wrapper.innerHTML = `
+      <div class="career-summary ${openCardIdx === i ? 'open' : ''}" id="summary-${i}" onclick="toggleCard(${i})">
+        <div class="cs-row">
+          <div class="cs-icon">${icon}</div>
+          <div class="cs-info">
+            <h3>
+              ${i === 0 ? '<span class="badge badge-green">🥇 Top</span>' : ''}
+              ${rec.career_title}
+              <span class="badge ${badgeCls}">${badgeTxt}</span>
+              ${done > 0 ? `<span class="comp-pill">✓ ${done}/${path.length} done</span>` : ''}
+            </h3>
+            <p>${rec.description}</p>
+          </div>
+          <div class="cs-right">
+            <div class="cs-score-wrap">
+              <div class="cs-score-num">${score}%</div>
+              <div class="cs-score-lbl">Match</div>
+            </div>
+            <div class="cs-progress-mini">
+              <div class="cs-prog-circle" style="--done:${pct}">
+                <span class="cs-prog-num">${pct}%</span>
+              </div>
+              <div class="cs-prog-lbl">Progress</div>
+            </div>
+            <div class="cs-arrow">▶</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Expandable Detail Panel ── -->
+      <div class="career-detail ${openCardIdx === i ? 'open' : ''}" id="detail-${i}">
+        <!-- Match score bar -->
+        <div class="detail-score-bar">
+          <div class="dsb-label"><span>AI Match Score</span><span>${score}%</span></div>
+          <div class="dsb-track"><div class="dsb-fill" style="width:${score}%"></div></div>
+        </div>
+
+        <!-- Steps checklist -->
+        <div class="steps-title">🗺️ Learning Roadmap — Check off steps as you complete them</div>
+        <div class="steps-list" id="steps-${i}">
+          ${path.map((step, si) => {
+            const isDone = getMergedProgress(currentUser.id, rec.career_title)[si] === true;
+            return `
+              <div class="step-item ${isDone ? 'done' : ''}" id="step-${i}-${si}" onclick="toggleStep(${i}, ${si})">
+                <div class="step-checkbox">${isDone ? '✓' : ''}</div>
+                <div class="step-num-badge">${si + 1}</div>
+                <div class="step-text">${step}</div>
+              </div>`;
+          }).join('')}
+        </div>
+
+        <!-- Progress bar -->
+        <div class="detail-prog-bar">
+          <div class="dpb-top">
+            <div class="dpb-label">Overall Progress</div>
+            <div class="dpb-count" id="dpb-count-${i}">${done} / ${path.length} steps completed</div>
+          </div>
+          <div class="dpb-track">
+            <div class="dpb-fill" id="dpb-fill-${i}" style="width:${pct}%"></div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="detail-actions">
+          <button type="button" class="btn btn-outline btn-sm" id="pin-${i}" onclick="togglePin(${i})">${savedByTitle[rec.career_title] ? '⭐ Saved' : '☆ Save career'}</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="copyPath(${i})">📋 Copy Roadmap</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="resetProgress(${i})">🔄 Reset Progress</button>
+          ${done === path.length && path.length > 0 ? '<span class="badge badge-green" style="padding:0.5rem 1rem;">🎉 Roadmap Complete!</span>' : ''}
+        </div>
+        ${rec.id ? `<div style="margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.08);font-size:0.85rem;color:var(--gray-500);">
+          <div style="margin-bottom:0.45rem;font-weight:600;color:var(--gray-300);">Was this recommendation helpful?</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.4rem;">${[1,2,3,4,5].map(n => `<button type="button" class="btn btn-outline btn-sm" style="min-width:2.1rem;padding:0.35rem 0.45rem;" onclick="submitFeedback(${rec.id}, ${n})">${n}★</button>`).join('')}</div>
+        </div>` : ''}
+      </div>
+    `;
+
+    container.appendChild(wrapper);
+  });
+}
+
+// ── Toggle card open/close ───────────────────────────────────
+function toggleCard(idx) {
+  const recs = window._recs;
+  if (openCardIdx === idx) {
+    // Close
+    document.getElementById(`summary-${idx}`).classList.remove('open');
+    document.getElementById(`detail-${idx}`).classList.remove('open');
+    openCardIdx = null;
+  } else {
+    // Close previous
+    if (openCardIdx !== null) {
+      document.getElementById(`summary-${openCardIdx}`)?.classList.remove('open');
+      document.getElementById(`detail-${openCardIdx}`)?.classList.remove('open');
+    }
+    // Open new
+    document.getElementById(`summary-${idx}`).classList.add('open');
+    document.getElementById(`detail-${idx}`).classList.add('open');
+    openCardIdx = idx;
+    // Scroll into view
+    setTimeout(() => document.getElementById(`summary-${idx}`).scrollIntoView({ behavior:'smooth', block:'nearest' }), 100);
+  }
+}
+
+// ── Toggle individual step ───────────────────────────────────
+async function toggleStep(cardIdx, stepIdx) {
+  const rec      = window._recs[cardIdx];
+  const path     = Array.isArray(rec.learning_path) ? rec.learning_path : [];
+  const stepEl   = document.getElementById(`step-${cardIdx}-${stepIdx}`);
+  const isDone   = stepEl.classList.contains('done');
+  const newState = !isDone;
+
+  stepEl.classList.toggle('done', newState);
+  stepEl.querySelector('.step-checkbox').textContent = newState ? '✓' : '';
+
+  saveProgress(currentUser.id, rec.career_title, stepIdx, newState);
+  if (!progressCache[rec.career_title]) progressCache[rec.career_title] = {};
+  progressCache[rec.career_title][stepIdx] = newState;
+
+  try {
+    await api('PUT', '/api/progress', { career_title: rec.career_title, step_index: stepIdx, done: newState });
+  } catch {
+    showToast('Saved on this device; server sync failed.', 'warning');
+  }
+
+  const done = countDone(currentUser.id, rec.career_title);
+  const pct  = path.length ? Math.round((done / path.length) * 100) : 0;
+  document.getElementById(`dpb-fill-${cardIdx}`).style.width  = pct + '%';
+  document.getElementById(`dpb-count-${cardIdx}`).textContent = `${done} / ${path.length} steps completed`;
+
+  const sumEl = document.getElementById(`summary-${cardIdx}`);
+  const circle = sumEl.querySelector('.cs-prog-circle');
+  const circleNum = sumEl.querySelector('.cs-prog-num');
+  if (circle) circle.style.setProperty('--done', pct);
+  if (circleNum) circleNum.textContent = pct + '%';
+
+  const h3 = sumEl.querySelector('h3');
+  let pill = h3.querySelector('.comp-pill');
+  if (done > 0) {
+    if (!pill) {
+      pill = document.createElement('span');
+      pill.className = 'comp-pill';
+      h3.appendChild(pill);
+    }
+    pill.textContent = `✓ ${done}/${path.length} done`;
+  } else if (pill) {
+    pill.remove();
+  }
+
+  if (newState) showToast(`Step ${stepIdx + 1} marked complete! ✅`, 'success');
+  else showToast(`Step ${stepIdx + 1} unmarked.`, 'info');
+}
+
+async function togglePin(idx) {
+  const rec = window._recs[idx];
+  if (!rec) return;
+  const btn = document.getElementById(`pin-${idx}`);
+  try {
+    if (savedByTitle[rec.career_title]) {
+      await api('DELETE', '/api/saved-careers/' + savedByTitle[rec.career_title]);
+      delete savedByTitle[rec.career_title];
+      if (btn) btn.textContent = '☆ Save career';
+      showToast('Removed from saved.', 'info');
+    } else {
+      await api('POST', '/api/saved-careers', { career_title: rec.career_title });
+      await loadSaved();
+      if (btn) btn.textContent = '⭐ Saved';
+      showToast('Saved! View from your dashboard anytime.', 'success');
+    }
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function submitFeedback(recId, rating) {
+  try {
+    await api('POST', '/api/recommendations/' + recId + '/feedback', { rating });
+    showToast('Thanks for the feedback!', 'success');
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ── Reset all progress for a career ─────────────────────────
+async function resetProgress(cardIdx) {
+  const rec  = window._recs[cardIdx];
+  const path = Array.isArray(rec.learning_path) ? rec.learning_path : [];
+  if (!confirm(`Reset all progress for "${rec.career_title}"?`)) return;
+
+  try {
+    await api('POST', '/api/progress/clear', { career_title: rec.career_title });
+  } catch {}
+
+  delete progressCache[rec.career_title];
+  localStorage.removeItem(`progress_${currentUser.id}_${rec.career_title}`);
+
+  path.forEach((_, si) => {
+    const stepEl = document.getElementById(`step-${cardIdx}-${si}`);
+    if (stepEl) {
+      stepEl.classList.remove('done');
+      stepEl.querySelector('.step-checkbox').textContent = '';
+    }
+  });
+
+  document.getElementById(`dpb-fill-${cardIdx}`).style.width  = '0%';
+  document.getElementById(`dpb-count-${cardIdx}`).textContent = `0 / ${path.length} steps completed`;
+
+  const sumEl = document.getElementById(`summary-${cardIdx}`);
+  const circle = sumEl.querySelector('.cs-prog-circle');
+  const circleNum = sumEl.querySelector('.cs-prog-num');
+  if (circle) circle.style.setProperty('--done', 0);
+  if (circleNum) circleNum.textContent = '0%';
+  const pill = sumEl.querySelector('.comp-pill');
+  if (pill) pill.remove();
+
+  showToast('Progress reset.', 'warning');
+}
+
+// ── Copy roadmap to clipboard ────────────────────────────────
+function copyPath(cardIdx) {
+  const rec  = window._recs[cardIdx];
+  const path = Array.isArray(rec.learning_path) ? rec.learning_path : [];
+  const text = `Career: ${rec.career_title}\nMatch Score: ${rec.match_score}%\n\nLearning Roadmap:\n${path.map((s,i)=>`${i+1}. ${s}`).join('\n')}`;
+  navigator.clipboard.writeText(text).then(() => showToast('Roadmap copied to clipboard!', 'success'));
+}
+</script>
+</body>
+</html>

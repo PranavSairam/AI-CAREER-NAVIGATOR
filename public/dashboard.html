@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — AI Career Navigator</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="toast"></div>
+
+<div class="app-wrapper">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <a href="dashboard.html" class="sidebar-logo">
+      <div class="s-icon">🧭</div>
+      <span>Career Navigator<em>AI-Powered</em></span>
+    </a>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <a href="dashboard.html" class="nav-link active"><div class="nav-icon">🏠</div>Dashboard</a>
+      <a href="profile.html"   class="nav-link"><div class="nav-icon">👤</div>My Profile</a>
+      <a href="recommendations.html" class="nav-link"><div class="nav-icon">🎯</div>Career Paths</a>
+      <a href="explore.html" class="nav-link"><div class="nav-icon">🔭</div>Explore Careers</a>
+      <a href="goals.html" class="nav-link"><div class="nav-icon">✅</div>Goals</a>
+    </div>
+    <div class="nav-section mt-2">
+      <div class="nav-label">Account</div>
+      <a href="#" class="nav-link" id="logout-btn"><div class="nav-icon">🚪</div>Logout</a>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="user-chip">
+        <div class="u-avatar" id="sb-avatar">U</div>
+        <div class="u-info">
+          <div class="u-name" id="sb-name">Loading…</div>
+          <div class="u-role">Career Explorer</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Header -->
+    <div class="page-header fade">
+      <h1 id="greeting">Hello! 👋</h1>
+      <p>Here's your career journey overview.</p>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-grid">
+      <div class="stat-card fade d1">
+        <div class="stat-icon si-blue">🎯</div>
+        <div><div class="stat-val" id="s-recs">—</div><div class="stat-lbl">Career Matches</div></div>
+      </div>
+      <div class="stat-card fade d2">
+        <div class="stat-icon si-purple">📋</div>
+        <div><div class="stat-val" id="s-pct">—%</div><div class="stat-lbl">Profile Complete</div></div>
+      </div>
+      <div class="stat-card fade d3">
+        <div class="stat-icon si-teal">🏆</div>
+        <div><div class="stat-val" id="s-top">—</div><div class="stat-lbl">Top Match Score</div></div>
+      </div>
+      <div class="stat-card fade d4">
+        <div class="stat-icon si-warn">📚</div>
+        <div><div class="stat-val" id="s-steps">—</div><div class="stat-lbl">Learning Steps</div></div>
+      </div>
+    </div>
+
+    <!-- Content Grid -->
+    <div class="grid-3-1 mb-2">
+      <!-- Top Matches -->
+      <div class="card fade d1">
+        <div class="card-header">
+          <div class="card-title">🎯 Top Career Matches</div>
+          <a href="recommendations.html" class="btn btn-sm btn-secondary">View All →</a>
+        </div>
+        <div id="qr-container">
+          <div class="empty-state">
+            <div class="empty-icon">🗺️</div>
+            <h3>No recommendations yet</h3>
+            <p>Complete your profile and generate AI recommendations.</p>
+            <a href="profile.html" class="btn btn-outline btn-sm mt-2">Set Up Profile</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div style="display:flex;flex-direction:column;gap:1.25rem;">
+        <!-- Profile card -->
+        <div class="card fade d2">
+          <div class="card-header">
+            <div class="card-title">👤 Profile Status</div>
+            <a href="profile.html" class="btn btn-sm btn-secondary">Edit</a>
+          </div>
+          <div class="comp-wrap">
+            <div class="comp-label"><span>Completion</span><span id="comp-pct">0%</span></div>
+            <div class="comp-bar"><div class="comp-fill" id="comp-bar" style="width:0%"></div></div>
+          </div>
+          <div id="profile-tags" class="tags-row mt-1" style="font-size:0.82rem;color:var(--gray-500);">Loading…</div>
+        </div>
+
+        <!-- Tips -->
+        <div class="card fade d3">
+          <div class="card-title mb-2">💡 Quick Tips</div>
+          <div class="tips">
+            <div class="tip"><div class="tip-icon">🎯</div><div class="tip-text"><strong>List specific tools.</strong> E.g. Python, Figma, AWS — not just "programming".</div></div>
+            <div class="tip"><div class="tip-icon">🔄</div><div class="tip-text"><strong>Update regularly.</strong> Refresh your profile as you learn new skills.</div></div>
+            <div class="tip"><div class="tip-icon">📖</div><div class="tip-text"><strong>Follow the roadmap.</strong> Each learning step builds toward your dream career.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity snapshot -->
+    <div class="card fade d4 mb-2" id="activity-card" style="display:none;padding:1.1rem 1.35rem;">
+      <div class="card-title mb-1" style="font-size:0.95rem;">Recent activity</div>
+      <ul id="activity-ul" style="font-size:0.82rem;color:var(--gray-500);margin:0;padding-left:1.1rem;line-height:1.5;"></ul>
+    </div>
+
+    <div class="grid-2 mb-2" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <div class="card fade" id="notifications-card" style="display:none;padding:1.1rem 1.35rem;">
+        <div class="card-title mb-1" style="font-size:0.95rem;">Smart notifications</div>
+        <ul id="notifications-ul" style="font-size:0.82rem;color:var(--gray-500);margin:0;padding-left:1.1rem;line-height:1.5;"></ul>
+      </div>
+      <div class="card fade" id="history-card" style="display:none;padding:1.1rem 1.35rem;">
+        <div class="card-title mb-1" style="font-size:0.95rem;">Recommendation history</div>
+        <ul id="history-ul" style="font-size:0.82rem;color:var(--gray-500);margin:0;padding-left:1.1rem;line-height:1.5;"></ul>
+      </div>
+    </div>
+
+    <!-- CTA Banner (shown if no recommendations) -->
+    <div class="card fade" id="cta-card" style="display:none;text-align:center;padding:2.5rem;">
+      <div style="font-size:3rem;margin-bottom:1rem;">🤖</div>
+      <h3 style="font-size:1.15rem;margin-bottom:0.4rem;">Ready for your AI career analysis?</h3>
+      <p style="color:var(--gray-500);font-size:0.88rem;margin-bottom:1.5rem;">Fill in your profile and let our AI recommend the best career paths for you.</p>
+      <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+        <a href="profile.html" class="btn btn-primary" style="width:auto;padding:0.8rem 2rem;">Complete Profile</a>
+        <a href="recommendations.html" class="btn btn-secondary" style="padding:0.8rem 2rem;">Generate Recommendations</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="js/script.js"></script>
+<script>
+(async () => {
+  const user = await initSidebar();
+  if (!user) return;
+
+  // Greeting
+  const h = new Date().getHours();
+  const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('greeting').textContent = `${greet}, ${user.name.split(' ')[0]}! 👋`;
+
+  try {
+    const { profile, recommendations } = await api('GET', '/api/dashboard');
+
+    // Stats
+    document.getElementById('s-recs').textContent = recommendations.length || '0';
+    const pct = calcCompletion(profile);
+    document.getElementById('s-pct').textContent  = pct + '%';
+    document.getElementById('comp-pct').textContent = pct + '%';
+    document.getElementById('comp-bar').style.width  = pct + '%';
+
+    if (recommendations.length) {
+      document.getElementById('s-top').textContent   = (recommendations[0]?.match_score || 0) + '%';
+      const steps = recommendations.reduce((s,r) => s + (Array.isArray(r.learning_path) ? r.learning_path.length : 0), 0);
+      document.getElementById('s-steps').textContent = steps;
+    } else {
+      document.getElementById('s-top').textContent   = '—';
+      document.getElementById('s-steps').textContent = '—';
+      document.getElementById('cta-card').style.display = 'block';
+    }
+
+    // Profile tags
+    const ptEl = document.getElementById('profile-tags');
+    if (profile && profile.skills) {
+      ptEl.innerHTML = tagsHtml(profile.skills, 5);
+    } else {
+      ptEl.innerHTML = '<a href="profile.html" style="color:var(--blue-light);">Add your skills →</a>';
+    }
+
+    // Quick recs
+    const qrEl = document.getElementById('qr-container');
+    if (recommendations.length) {
+      qrEl.innerHTML = recommendations.map(r => `
+        <div class="qr-item" onclick="location.href='recommendations.html'">
+          <div class="qr-icon si-blue">${careerIcons[r.career_title]||'🎯'}</div>
+          <div><div class="qr-title">${r.career_title}</div><div class="qr-score">${r.match_score}% match</div></div>
+          <div class="qr-arr">→</div>
+        </div>`).join('');
+    }
+    try {
+      const st = await api('GET', '/api/stats');
+      const ul = document.getElementById('activity-ul');
+      const card = document.getElementById('activity-card');
+      if (st.recent_activity && st.recent_activity.length) {
+        ul.innerHTML = st.recent_activity.map(a =>
+          `<li><strong style="color:var(--gray-300);">${a.action.replace(/_/g, ' ')}</strong> · ${new Date(a.created_at).toLocaleString()}</li>`
+        ).join('');
+        card.style.display = 'block';
+      }
+    } catch { /* optional */ }
+
+    try {
+      const n = await api('GET', '/api/notifications');
+      const ul = document.getElementById('notifications-ul');
+      const card = document.getElementById('notifications-card');
+      if (n.notifications && n.notifications.length) {
+        ul.innerHTML = n.notifications.map(item =>
+          `<li><strong style="color:var(--gray-300);">${item.title}</strong> · ${item.message}</li>`
+        ).join('');
+        card.style.display = 'block';
+      }
+    } catch { /* optional */ }
+
+    try {
+      const h = await api('GET', '/api/recommendations/history');
+      const ul = document.getElementById('history-ul');
+      const card = document.getElementById('history-card');
+      if (h.history && h.history.length) {
+        ul.innerHTML = h.history.map(run =>
+          `<li><strong style="color:var(--gray-300);">${new Date(run.created_at).toLocaleDateString()}</strong> · Top: ${run.top_career} · Avg score: ${run.average_score}%</li>`
+        ).join('');
+        card.style.display = 'block';
+      }
+    } catch { /* optional */ }
+  } catch (err) {
+    showToast('Failed to load dashboard.', 'error');
+  }
+})();
+</script>
+</body>
+</html>

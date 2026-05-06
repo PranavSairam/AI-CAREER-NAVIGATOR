@@ -1,0 +1,7 @@
+node_modules/
+.env
+data/career_navigator.db
+career_navigator.db
+.DS_Store
+npm-debug.log*
+*.log

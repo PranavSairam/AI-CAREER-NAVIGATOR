@@ -1,0 +1,65 @@
+AI Career Navigator — Directory layout (SEPM / maintenance)
+================================================================
+
+ai-career-navigator/
+├── server.js                 Application entry (loads src/app.js)
+├── package.json              Dependencies and npm scripts
+├── package-lock.json         Lockfile (if present)
+├── .gitignore                Ignores node_modules, .env, SQLite DB
+├── README.md                 Quick start (short)
+│
+├── config/
+│   └── env.example           Sample environment variables (copy to .env at project root)
+│
+├── data/
+│   ├── .gitkeep              Ensures folder exists in git
+│   └── career_navigator.db   (runtime) SQLite DB; created on first run; listed in .gitignore
+│
+├── docs/
+│   ├── SEPM_PROJECT_DOCUMENTATION.txt   Full project specification (this deliverable set)
+│   └── FOLDER_STRUCTURE.txt             This file
+│
+├── public/                   Static web UI (served by Express at /)
+│   ├── css/
+│   │   └── style.css         Global stylesheet
+│   ├── js/
+│   │   └── script.js         Shared fetch helpers, sidebar, tags, completion helpers
+│   ├── login.html
+│   ├── register.html
+│   ├── dashboard.html
+│   ├── profile.html
+│   ├── recommendations.html
+│   ├── explore.html
+│   └── goals.html
+│
+├── src/                      Server-side source
+│   ├── app.js                Express app, middleware, route mounting, DB path resolution
+│   ├── db.js                 SQLite connection, schema, helpers, activity logging
+│   ├── utils.js              Email validation, slugify, stable score helper
+│   ├── data/
+│   │   └── careers.js        Canonical career catalog (titles, slugs, keywords, roadmaps)
+│   ├── middleware/
+│   │   └── requireAuth.js    Session guard for protected APIs
+│   ├── routes/
+│   │   ├── auth.js           Register, login, logout, me, change-password, delete account
+│   │   ├── profile.js        Profile CRUD, JSON export
+│   │   ├── recommendations.js Generate, list, feedback, history runs
+│   │   ├── dashboard.js      Aggregated dashboard payload
+│   │   ├── careers.js        Public career catalog API
+│   │   ├── saved.js          Saved careers (bookmarks)
+│   │   ├── progress.js       Learning step progress (sync/clear)
+│   │   ├── goals.js          User goals CRUD + reminders
+│   │   ├── stats.js          Dashboard statistics + recent activity
+│   │   └── notifications.js Smart notifications feed
+│   └── services/
+│       └── recommendationEngine.js  Rule-based matcher (top 5 careers)
+│
+└── tests/                    Placeholder for future automated tests
+    ├── .gitkeep
+    └── README.txt
+
+Notes
+-----
+- Legacy database: If an old file career_navigator.db exists at the project root, it is
+  copied once into data/career_navigator.db on first startup (migration helper in src/app.js).
+- Environment: Copy config/env.example to .env in the project root (same folder as package.json).
